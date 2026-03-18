@@ -8,7 +8,6 @@ from flask import Flask, jsonify, request
 
 app = Flask("VideoPlaybackApp")
 
-
 # Directory where test videos are stored
 VIDEOS_DIR = Path(os.environ.get("VIDEOS_DIR", "./videos"))
 
@@ -57,6 +56,10 @@ class PlayerState:
             self.current_video = video_path.name
             self.error_message = None
 
+        # Watch the process in a background thread so we can auto-reset state
+        threading.Thread(target=self._watch, daemon=True).start()
+        return True, f"Playing {video_path.name}"
+
     def _watch(self):
         """
         Wait for the process to finish before updating state.
@@ -87,4 +90,26 @@ class PlayerState:
 player = PlayerState()
 
 def _launch_video(video_path: Path):
-    # TODO: Implement platform-specific video playback logic
+    """
+    Launch a video process.
+    Tries mvp, then vlc
+    Raises RuntimeError if no player is found
+    """
+    candidates = [
+        ["mpv", "--no-terminal", str(video_path)],
+        ["vlc", "--play-and-exit", str(video_path)]
+    ]
+    for candidate in candidates:
+        command = candidate[0]
+        if _command_exists(command):
+            return subprocess.Popen(
+                candidate,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+    raise RuntimeError("No supported video player found (try installing mpv or vlc)")
+
+
+def _command_exists(command : str):
+    import shutil
+    return shutil.which(command) is not None
