@@ -170,7 +170,7 @@ def stop():
         return jsonify({"error": message}), 409
     return jsonify({"message" : message}), 200
 
-@app.route("/videos", methods=["POST"])
+@app.route("/videos", methods=["GET"])
 def videos():
     """
     Return a list of videos.
@@ -186,4 +186,5 @@ def videos():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=False)
+    # Disabled the debugger so tests can run
