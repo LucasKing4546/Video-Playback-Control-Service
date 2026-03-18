@@ -113,3 +113,77 @@ def _launch_video(video_path: Path):
 def _command_exists(command : str):
     import shutil
     return shutil.which(command) is not None
+
+# Routes
+
+@app.route("/status", methods=["GET"])
+def status():
+    """
+    Return the current playback state.
+    """
+    return jsonify(player.get_status())
+
+@app.route("/play", methods=["POST"])
+def play():
+    """
+    Play the given video path.
+
+    Input:
+    { "video": "example.mp4" }
+
+    Response:
+        200 OK
+        400 Bad request - missing 'video' parameter
+        404 Not found
+        500 Playback error
+    """
+
+    data = request.get_json(silent=True) or {}
+    video_name = data.get("video")
+
+    if not video_name:
+        return jsonify({"error": "Missing video parameter"}), 400
+
+    video_path = VIDEOS_DIR / video_name
+
+    if not video_path.exists():
+        return jsonify({"error": "Video does not exist"}), 404
+
+    success, message = player.play(video_path)
+
+    if not success:
+        return jsonify({"error": message}), 500
+
+    return jsonify({"message" : message, "video_name" : video_name}), 200
+
+@app.route("/stop", methods=["POST"])
+def stop():
+    """
+    Stop the current playback.
+    Response:
+    200 OK
+    409 No video is currently playing
+    """
+
+    success, message = player.stop()
+    if not success:
+        return jsonify({"error": message}), 409
+    return jsonify({"message" : message}), 200
+
+@app.route("/videos", methods=["POST"])
+def videos():
+    """
+    Return a list of videos.
+    Response:
+    {"videos": ["example.mp4", "...", ...]}
+    """
+
+    if not VIDEOS_DIR.exists():
+        return jsonify({"error": "Videos directory does not exist"}), 500
+
+    videos = [f.name for f in VIDEOS_DIR.iterdir() if f.is_file()]
+    return jsonify({"videos": videos}), 200
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", debug=True)
